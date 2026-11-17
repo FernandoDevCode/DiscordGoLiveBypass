@@ -44,7 +44,10 @@ func main() {
 			os.Exit(1)
 		}
 	case *install:
-		os.Exit(writeResult(*result, installService(*owner)))
+		if err := installService(*owner); err != nil {
+			messageBox("DiscordGoLiveBypass", "Falha ao instalar o serviço: "+err.Error(), windows.MB_ICONERROR)
+			os.Exit(1)
+		}
 	case *uninstall:
 		err := uninstallService(*waitPID)
 		if err != nil {
@@ -52,7 +55,9 @@ func main() {
 		} else {
 			messageBox("DiscordGoLiveBypass", "O DiscordGoLiveBypass foi removido. O Discord volta a sair pela sua conexão normal.", windows.MB_ICONINFORMATION)
 		}
-		os.Exit(writeResult(*result, err))
+		if err != nil {
+			os.Exit(1)
+		}
 	default:
 		if err := runGUI(); err != nil {
 			messageBox("DiscordGoLiveBypass", "A janela não abriu: "+err.Error(), windows.MB_ICONERROR)
