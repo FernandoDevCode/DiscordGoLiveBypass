@@ -1,0 +1,95 @@
+name: Publish v2.2.1 (one-time)
+
+# One-time release of the audited fork after PR #1 is merged.
+# Keep the publication tied to the intended merge commit, not to arbitrary pushes.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: ${{ startsWith(github.event.head_commit.message, 'release: v2.2.1') }}
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Conferir integridade e dependências
+        shell: pwsh
+        run: |
+          go mod verify
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go mod tidy
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --exit-code -- go.mod go.sum
+          if ($LASTEXITCODE -ne 0) { throw 'O grafo de módulos não está sincronizado.' }
+
+      - name: Analisar, testar e verificar vulnerabilidades
+        shell: pwsh
+        run: |
+          go vet ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go test ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Compilar com versão v2.2.1
+        shell: pwsh
+        run: ./Compilar.ps1 -Versao v2.2.1
+
+      - name: Preparar pacote, hashes e notas
+        shell: pwsh
+        run: |
+          $zip = 'DiscordGoLiveBypass-v2.2.1-windows-amd64.zip'
+          Compress-Archive -Force -DestinationPath $zip -Path DiscordGoLiveBypass.exe, Validar-rota.ps1, README.md, LICENSE, LICENCA-WireGuardNT.txt
+          @($zip, 'DiscordGoLiveBypass.exe') | ForEach-Object {
+            '{0}  {1}' -f (Get-FileHash $_ -Algorithm SHA256).Hash.ToLowerInvariant(), $_
+          } | Set-Content -Encoding ascii -Path SHA256SUMS.txt
+          @'
+          ## DiscordGoLiveBypass v2.2.1 — fork de segurança
+
+          Versão independente do fork FernandoDevCode, baseada no projeto de thomassolcia.
+
+          - Wails atualizado para v2.17.1 e dependências de segurança atualizadas.
+          - Go 1.26.11 para correções da biblioteca padrão.
+          - Desinstalação elevada sem executar cópia do EXE em pasta temporária.
+          - Removida gravação privilegiada de arquivos de resultado controlados por argumento.
+          - go vet, go test, govulncheck e compilação Windows aprovados no GitHub Actions.
+
+          **Windows 10/11, 64 bits.** Extraia o ZIP e execute DiscordGoLiveBypass.exe.
+          Você precisa de uma configuração WireGuard válida, por exemplo um arquivo .conf do Proton VPN.
+          O programa pede permissão de administrador para instalar um serviço e o driver de rede.
+
+          **Atenção:** executável sem assinatura digital; não há garantia de segurança absoluta.
+          Não compartilhe arquivos .conf nem chaves privadas.
+          '@ | Set-Content -Encoding utf8 -Path RELEASE-NOTES.md
+
+      - name: Publicar release e criar tag no commit exato
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = 'v2.2.1'
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) { throw 'A release v2.2.1 já existe; não será sobrescrita.' }
+          gh release create $tag DiscordGoLiveBypass-v2.2.1-windows-amd64.zip DiscordGoLiveBypass.exe SHA256SUMS.txt --target $env:GITHUB_SHA --title 'DiscordGoLiveBypass v2.2.1 (fork de segurança)' --notes-file RELEASE-NOTES.md --latest
+          if ($LASTEXITCODE -ne 0) { throw 'Falha ao publicar a release.' }
+
+      - name: Guardar artefatos do build
+        uses: actions/upload-artifact@v4
+        with:
+          name: DiscordGoLiveBypass-v2.2.1-windows-amd64
+          path: |
+            DiscordGoLiveBypass-v2.2.1-windows-amd64.zip
+            DiscordGoLiveBypass.exe
+            SHA256SUMS.txt
