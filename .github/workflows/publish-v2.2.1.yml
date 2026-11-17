@@ -55,24 +55,6 @@ jobs:
           @($zip, 'DiscordGoLiveBypass.exe') | ForEach-Object {
             '{0}  {1}' -f (Get-FileHash $_ -Algorithm SHA256).Hash.ToLowerInvariant(), $_
           } | Set-Content -Encoding ascii -Path SHA256SUMS.txt
-          @'
-          ## DiscordGoLiveBypass v2.2.1 — fork de segurança
-
-          Versão independente do fork FernandoDevCode, baseada no projeto de thomassolcia.
-
-          - Wails atualizado para v2.17.1 e dependências de segurança atualizadas.
-          - Go 1.26.11 para correções da biblioteca padrão.
-          - Desinstalação elevada sem executar cópia do EXE em pasta temporária.
-          - Removida gravação privilegiada de arquivos de resultado controlados por argumento.
-          - go vet, go test, govulncheck e compilação Windows aprovados no GitHub Actions.
-
-          **Windows 10/11, 64 bits.** Extraia o ZIP e execute DiscordGoLiveBypass.exe.
-          Você precisa de uma configuração WireGuard válida, por exemplo um arquivo .conf do Proton VPN.
-          O programa pede permissão de administrador para instalar um serviço e o driver de rede.
-
-          **Atenção:** executável sem assinatura digital; não há garantia de segurança absoluta.
-          Não compartilhe arquivos .conf nem chaves privadas.
-          '@ | Set-Content -Encoding utf8 -Path RELEASE-NOTES.md
 
       - name: Publicar release e criar tag no commit exato
         shell: pwsh
@@ -82,7 +64,7 @@ jobs:
           $tag = 'v2.2.1'
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) { throw 'A release v2.2.1 já existe; não será sobrescrita.' }
-          gh release create $tag DiscordGoLiveBypass-v2.2.1-windows-amd64.zip DiscordGoLiveBypass.exe SHA256SUMS.txt --target $env:GITHUB_SHA --title 'DiscordGoLiveBypass v2.2.1 (fork de segurança)' --notes-file RELEASE-NOTES.md --latest
+          gh release create $tag DiscordGoLiveBypass-v2.2.1-windows-amd64.zip DiscordGoLiveBypass.exe SHA256SUMS.txt --target $env:GITHUB_SHA --title 'DiscordGoLiveBypass v2.2.1 (fork de segurança)' --notes-file .github/notas-de-versao/v2.2.1.md --latest
           if ($LASTEXITCODE -ne 0) { throw 'Falha ao publicar a release.' }
 
       - name: Guardar artefatos do build
