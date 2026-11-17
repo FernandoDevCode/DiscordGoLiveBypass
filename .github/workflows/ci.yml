@@ -27,7 +27,7 @@ jobs:
   windows:
     runs-on: windows-latest
     # Leva de 1 a 3 minutos. Sem limite, um teste pendurado ficaria 6 horas cobrando em dobro.
-    timeout-minutes: 6
+    timeout-minutes: 10
     # Em push e workflow_dispatch não existe pull_request, e o null compara igual a false,
     # então esses rodam sempre.
     if: github.event.pull_request.draft == false
@@ -70,6 +70,11 @@ jobs:
       - name: Testar
         if: steps.mudou.outputs.codigo == 'true'
         run: go test ./...
+
+      # Verifica chamadas a funções com vulnerabilidades publicadas.
+      - name: Verificar vulnerabilidades conhecidas
+        if: steps.mudou.outputs.codigo == 'true'
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 
       # Pelo mesmo script da release: um driver que não embute ou um hash que mudou aparecem
       # aqui, e não no dia da tag.
