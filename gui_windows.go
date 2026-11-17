@@ -502,19 +502,14 @@ func (a *App) install() error {
 	if err != nil {
 		return err
 	}
-	result := filepath.Join(os.TempDir(), fmt.Sprintf("DiscordGoLiveBypass-instalacao-%d.json", os.Getpid()))
-	os.Remove(result)
-	defer os.Remove(result)
-
-	code, err := runElevated(exe, []string{"-install", "-owner", currentUserSID(), "-result", result})
+	// A etapa elevada nunca deve gravar resultados em um caminho controlado
+	// por argumentos (nem no diretório temporário do usuário).
+	code, err := runElevated(exe, []string{"-install", "-owner", currentUserSID()})
 	if errors.Is(err, errElevationDenied) {
 		return errors.New("sem a permissão de administrador o Windows não deixa instalar o serviço do túnel. Clique de novo e responda Sim no aviso")
 	}
 	if err != nil {
 		return fmt.Errorf("não consegui pedir a permissão de administrador: %v", err)
-	}
-	if err := readResult(result); err != nil {
-		return err
 	}
 	if code != 0 {
 		return fmt.Errorf("a instalação terminou com o código %d", code)
