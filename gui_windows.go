@@ -502,19 +502,14 @@ func (a *App) install() error {
 	if err != nil {
 		return err
 	}
-	result := filepath.Join(os.TempDir(), fmt.Sprintf("DiscordGoLiveBypass-instalacao-%d.json", os.Getpid()))
-	os.Remove(result)
-	defer os.Remove(result)
-
-	code, err := runElevated(exe, []string{"-install", "-owner", currentUserSID(), "-result", result})
+	// A etapa elevada nunca deve gravar resultados em um caminho controlado
+	// por argumentos (nem no diretório temporário do usuário).
+	code, err := runElevated(exe, []string{"-install", "-owner", currentUserSID()})
 	if errors.Is(err, errElevationDenied) {
 		return errors.New("sem a permissão de administrador o Windows não deixa instalar o serviço do túnel. Clique de novo e responda Sim no aviso")
 	}
 	if err != nil {
 		return fmt.Errorf("não consegui pedir a permissão de administrador: %v", err)
-	}
-	if err := readResult(result); err != nil {
-		return err
 	}
 	if code != 0 {
 		return fmt.Errorf("a instalação terminou com o código %d", code)
@@ -647,23 +642,12 @@ func (a *App) AbrirProton()  { runtime.BrowserOpenURL(a.ctx, protonDownloads) }
 func (a *App) AbrirAjuda()   { runtime.BrowserOpenURL(a.ctx, helpURL) }
 func (a *App) AbrirRelease() { runtime.BrowserOpenURL(a.ctx, releasesPage) }
 
-// O executável instalado não pode apagar a si mesmo, então a remoção roda de uma cópia
-// temporária, que espera esta janela fechar antes de começar.
+// A remoção é executada a partir de Arquivos de Programas, protegido contra
+// substituição por processos sem privilégios. Nunca elevar cópias no diretório
+// temporário do usuário: elas podem ser trocadas entre a gravação e o UAC.
+// Arquivos ainda em uso serão removidos no próximo reinício pelo desinstalador.
 func (a *App) Desinstalar() error {
-	exe, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	copyPath := filepath.Join(os.TempDir(), "DiscordGoLiveBypass-remover.exe")
-	raw, err := os.ReadFile(exe)
-	if err != nil {
-		return err
-	}
-	if err := os.WriteFile(copyPath, raw, 0o755); err != nil {
-		return err
-	}
-
-	err = startElevated(copyPath, []string{"-uninstall", "-wait-pid", fmt.Sprint(os.Getpid())})
+	err := startElevated(installedExe(), []string{"-uninstall", "-wait-pid", fmt.Sprint(os.Getpid())})
 	if errors.Is(err, errElevationDenied) {
 		return errors.New("sem a permissão de administrador o Windows não deixa remover o serviço")
 	}
