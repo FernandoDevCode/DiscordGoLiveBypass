@@ -63,6 +63,10 @@ jobs:
 
       # Um passo por comando: num passo só, a falha do primeiro sumiria atrás do sucesso do
       # último, porque o shell devolve o código de saída da última linha.
+      - name: Verificar integridade de módulos
+        if: steps.mudou.outputs.codigo == 'true'
+        run: go mod verify
+
       - name: Analisar
         if: steps.mudou.outputs.codigo == 'true'
         run: go vet ./...
