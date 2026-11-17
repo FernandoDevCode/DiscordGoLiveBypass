@@ -67,6 +67,18 @@ jobs:
         if: steps.mudou.outputs.codigo == 'true'
         run: go mod verify
 
+      # go mod tidy pode revelar mudanças indiretas de dependências.
+      # Imprime o diff para revisão, sem alterar o repositório automaticamente.
+      - name: Conferir consistência de go.mod e go.sum
+        if: steps.mudou.outputs.codigo == 'true'
+        shell: pwsh
+        run: |
+          go mod tidy
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff -- go.mod go.sum
+          git diff --quiet -- go.mod go.sum
+          if ($LASTEXITCODE -ne 0) { throw 'go.mod/go.sum precisam do resultado de go mod tidy' }
+
       - name: Analisar
         if: steps.mudou.outputs.codigo == 'true'
         run: go vet ./...
