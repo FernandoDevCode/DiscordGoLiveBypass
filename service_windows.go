@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -494,39 +493,3 @@ func waitProcessExit(pid int, timeout time.Duration) {
 	windows.WaitForSingleObject(handle, uint32(timeout.Milliseconds()))
 }
 
-// O processo elevado não tem como devolver texto para a janela além do código de saída,
-// então o motivo de uma falha vai num arquivo que ela lê depois.
-func writeResult(path string, err error) int {
-	if path == "" {
-		if err != nil {
-			return 1
-		}
-		return 0
-	}
-	message := ""
-	if err != nil {
-		message = err.Error()
-	}
-	raw, _ := json.Marshal(map[string]string{"error": message})
-	os.WriteFile(path, raw, 0o600)
-	if err != nil {
-		return 1
-	}
-	return 0
-}
-
-func readResult(path string) error {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil
-	}
-	defer file.Close()
-	var result map[string]string
-	if err := json.NewDecoder(io.LimitReader(file, 64*1024)).Decode(&result); err != nil {
-		return nil
-	}
-	if result["error"] != "" {
-		return errors.New(result["error"])
-	}
-	return nil
-}
